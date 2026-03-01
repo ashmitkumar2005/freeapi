@@ -12,74 +12,84 @@ Rather than relying on fragile web scrapers or unofficial wrappers, Freeapi brin
 
 ## Supported Providers
 
-* **Gemini Web**: Google's Gemini Chat Interface.
+* **Duck.ai**: (Beta) Anonymous access, No login required. Features deep-headless stealth.
+* **Gemini Web**: Google's Gemini Chat Interface. requires local login.
 * *(More provider adapters are actively being added)*
 
 ## Architecture
 
-Freeapi relies on a multi-stage architecture localized entirely on the user's machine to protect credentials and manage state securely:
+Freeapi relies on a multi-stage architecture localized entirely on the user's machine:
 
-1. **Authentication:** Uses Playwright to orchestrate a visible browser flow. Once the user logs in, the session token context (Cookies, LocalStorage) is saved securely to `~/.freeapi/`.
-2. **The Proxy Server:** An Express-driven Local API server (`localhost:3000`) sits behind a locally generated API key barrier. 
-3. **Provider Adapters:** Modular classes handle the routing, normalization, and UI automation required to proxy the request to the target provider.
+1. **Authentication:** For providers like Gemini, it orchestrates a visible browser flow to save session context to `~/.freeapi/`. For anonymous providers like Duck.ai, it uses deep-spoofed headless browser instances.
+2. **The Proxy Server:** An Express-driven Local API server (`localhost:3000`) with a dedicated `/v1` router protected by a locally generated API key.
+3. **Provider Adapters:** Modular classes handle the routing, normalization, and UI automation required to proxy the request.
 
 ## Installation
 
 Ensure you have Node.js installed, then clone the repository:
 
 ```bash
-git clone https://github.com/ashmitkumar2005/freeapi.git
-cd freeapi
+git clone https://github.com/ashmitkumar2005/FreeAPI.git
+cd FreeAPI
 npm install
+npx playwright install chromium
 ```
 
 ## Quick Start Guide
 
-### 1. Authenticate a Provider Session
+### 1. Authenticate (If required)
 
-To interact with a provider, you must first log in using your own credentials. Run the login command and follow the instructions in the browser window that opens.
-
+For Gemini:
 ```bash
 node src/index.js login gemini
 ```
 
-Once logged in successfully, close the browser window. Freeapi will save the session context securely on your local machine.
+**For Duck.ai (No login needed):**
+Skip directly to step 2.
 
 ### 2. Start the Local API Server
 
-Start the local server, which will load your saved headless session and initiate the REST interface on port `3000`.
+Start the local server for your chosen provider:
 
 ```bash
+# For Duck.ai
+node src/index.js start duck
+
+# For Gemini
 node src/index.js start gemini
 ```
 
-Upon the first execution, Freeapi will generate a highly secure `LOCAL_API_KEY` in your `.env` file. You will need this key to authorize your requests.
+Upon first execution, Freeapi generates a `LOCAL_API_KEY` in your `.env` file.
 
-### 3. Consume the API
+### 3. Test with the Premium Chatbot UI
 
-You can now hit the local `localhost:3000` endpoints just as you would any highly structured production API.
+Freeapi now includes a built-in premium glassmorphism test client. Once the server is running, visit:
+
+**[http://localhost:3000/client/index.html](http://localhost:3000/client/index.html)**
+
+### 4. Consume the API Programmatically
 
 **Check Available Models:**
 ```bash
 curl -H "Authorization: Bearer <YOUR_LOCAL_API_KEY>" http://localhost:3000/v1/models
 ```
 
-**Generate a Chat Completion (OpenAI Schema):**
+**Generate a Chat Completion:**
 ```bash
 curl -X POST \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <YOUR_LOCAL_API_KEY>" \
-  -d '{"model": "gemini-web", "messages": [{"role": "user", "content": "Explain quantum computing in one sentence."}]}' \
+  -d '{"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "Hello!"}]}' \
   http://localhost:3000/v1/chat/completions
 ```
 
 ## Security Notice
 
-Freeapi is a local infrastructure proxy. It saves raw session tokens (which provide full access to the authenticated accounts) unencrypted on the local file system (`~/.freeapi/sessions/`).
+Freeapi is a local infrastructure proxy. 
 
-* **Do not** deploy Freeapi on shared or public cloud servers without significant sandboxing and isolation.
-* **Always** use the generated `LOCAL_API_KEY` when communicating with the proxy server to prevent cross-origin or rogue local script abuse.
-* The system is intended strictly for local development and secure, controlled backend environments.
+* **Local Auth**: Raw session tokens for authenticated accounts are stored on the local file system.
+* **API Protection**: The `/v1` API route is protected by your local key. The `/client` UI is served openly for local use.
+* **Intended Use**: Strictly for local development and secure, controlled backend environments.
 
 ## License
 
