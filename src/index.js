@@ -7,6 +7,7 @@ const { startAuthFlow, loadSession } = require('./core/session');
 const { startServer } = require('./server/app');
 const ExampleProvider = require('./providers/exampleProvider');
 const GeminiProvider = require('./providers/geminiProvider');
+const DuckAiProvider = require('./providers/duckProvider');
 
 // Ensure an API key exists or generate one securely
 const ENV_PATH = path.join(__dirname, '..', '.env');
@@ -28,6 +29,12 @@ async function main() {
     console.log(`Starting Freeapi CLI...\n`);
 
     if (command === 'login') {
+        if (providerName === 'duck') {
+            console.log(`[Duck.ai] No login required! The Duck.ai provider operates entirely with a spoofed headless browser.`);
+            console.log(`To start the server, simply run: node src/index.js start duck`);
+            return process.exit(0);
+        }
+
         let loginUrl = 'https://example.com';
         if (providerName === 'gemini') {
             loginUrl = 'https://gemini.google.com/';
@@ -36,20 +43,25 @@ async function main() {
         process.exit(0);
     }
     else if (command === 'start') {
-        const sessionData = await loadSession(providerName);
-
-        if (!sessionData) {
-            console.error(`Error: No saved session found for provider '${providerName}'.`);
-            console.log(`Please run: node src/index.js login ${providerName}`);
-            process.exit(1);
-        }
-
-        console.log(`Session loaded successfully. Initializing ${providerName} adapter...`);
         let providerInstance;
-        if (providerName === 'gemini') {
-            providerInstance = new GeminiProvider(sessionData.context, sessionData.browser);
+
+        if (providerName === 'duck') {
+            console.log(`Initializing Duck.ai spoofed headless adapter...`);
+            providerInstance = new DuckAiProvider();
         } else {
-            providerInstance = new ExampleProvider(sessionData.context);
+            const sessionData = await loadSession(providerName);
+            if (!sessionData) {
+                console.error(`Error: No saved session found for provider '${providerName}'.`);
+                console.log(`Please run: node src/index.js login ${providerName}`);
+                process.exit(1);
+            }
+
+            console.log(`Session loaded successfully. Initializing ${providerName} adapter...`);
+            if (providerName === 'gemini') {
+                providerInstance = new GeminiProvider(sessionData.context, sessionData.browser);
+            } else {
+                providerInstance = new ExampleProvider(sessionData.context);
+            }
         }
 
         startServer(providerInstance);
